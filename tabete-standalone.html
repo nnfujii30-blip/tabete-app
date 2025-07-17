@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TABETE - Community Resource Sharing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%); }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <div id="app" class="min-h-screen">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="min-h-screen flex items-center justify-center">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p class="text-white text-lg">Firebase接続中...</p>
+            </div>
+        </div>
+
+        <!-- Auth Screen -->
+        <div id="auth-screen" class="min-h-screen hidden">
+            <div class="max-w-md mx-auto p-6">
+                <div class="text-center mb-8 pt-20">
+                    <h1 class="text-4xl font-bold text-white mb-4">TABETE</h1>
+                    <p class="text-white/80 text-lg">Share resources, build community</p>
+                    <p class="text-blue-200 text-sm mt-2">💳 Stripe決済統合版</p>
+                </div>
+
+                <!-- Welcome Screen -->
+                <div id="welcome-card" class="bg-white rounded-2xl shadow-xl p-8 text-center">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Welcome to TABETE</h2>
+                    <p class="text-gray-600 mb-8">Join our community to start sharing resources</p>
+                    
+                    <div class="space-y-4">
+                        <button onclick="showAuthForm(true)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                            Login
+                        </button>
+                        <button onclick="showAuthForm(false)" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                            Sign Up
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Auth Form -->
+                <div id="auth-form" class="bg-white rounded-2xl shadow-xl p-8 hidden">
+                    <h2 id="auth-title" class="text-2xl font-semibold text-gray-800 mb-6 text-center">Login</h2>
+                    
+                    <div class="space-y-4">
+                        <input type="email" id="auth-email" placeholder="Email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <input type="password" id="auth-password" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <input type="password" id="auth-confirm" placeholder="Confirm Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hidden">
+                        
+                        <button onclick="handleAuth()" id="auth-submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                            Login
+                        </button>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button onclick="toggleAuthMode()" id="auth-toggle" class="text-blue-600 hover:text-blue-800 font-medium">
+                            Don't have an account? Sign up
+                        </button>
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                        <button onclick="showWelcome()" class="text-gray-500 hover:text-gray-700">Back</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App Screen -->
+        <div id="main-screen" class="min-h-screen hidden">
+            <div class="max-w-md mx-auto p-6">
+                <!-- Header -->
+                <div class="text-center mb-8 pt-6">
+                    <h1 class="text-3xl font-bold text-white mb-2">TABETE</h1>
+                    <p class="text-white/80">Share resources, build community</p>
+                    <p class="text-blue-200 text-sm">💳 Stripe決済統合版</p>
+                    <div class="mt-4 flex items-center justify-between bg-white/10 backdrop-blur rounded-lg px-4 py-2">
+                        <span class="text-sm text-white" id="user-welcome">Welcome!</span>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="toggleAdminPanel()" id="admin-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm hidden">管理</button>
+                            <button onclick="logout()" class="text-red-300 hover:text-red-100 p-1">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Panel -->
+                <div id="admin-panel" class="bg-white rounded-2xl shadow-lg p-6 mb-8 hidden">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">管理者パネル - Stripe出金対応</h3>
+                    <div id="pending-requests" class="space-y-4">
+                        <p class="text-gray-500">承認待ちの申請はありません</p>
+                    </div>
+                </div>
+
+                <!-- Success Message -->
+                <div id="success-message" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6 text-center animate-pulse hidden">
+                    Transaction successful! 🎉
+                </div>
+
+                <!-- Pool Status -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                    <div class="flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <h2 class="text-xl font-semibold text-gray-800">Community Pool</h2>
+                    </div>
+                    <div class="text-center">
+                        <div id="pool-amount" class="text-4xl font-bold text-blue-600 mb-2">¥15,420</div>
+                        <div class="text-gray-500">Available for sharing</div>
+                    </div>
+                </div>
+
+                <!-- Give and Get Section -->
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <!-- Give Section -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center mb-4">
+                            <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            <h3 class="text-lg font-semibold text-gray-800">Give to Community</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <input type="number" id="give-amount" placeholder="Enter amount to give" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <button onclick="handleGive()" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                </svg>
+                                決済: ¥<span id="give-display">0</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Get Section -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex items-center mb-4">
+                            <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                            </svg>
+                            <h3 class="text-lg font-semibold text-gray-800">Get from Community</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <input type="number" id="get-amount" placeholder="Enter amount to get" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <button onclick="handleGet()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                                申請: ¥<span id="get-display">0</span>
+                            </button>
+                            <div id="get-error" class="text-red-500 text-sm hidden">Amount exceeds available pool</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Requests Status -->
+                <div id="user-requests" class="bg-white rounded-2xl shadow-lg p-6 mb-8 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">申請状況</h3>
+                    <div id="requests-list" class="space-y-3"></div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <div class="flex items-center justify-center mb-4">
+                        <svg class="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-800">Community Impact</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center">
+                            <div id="total-given" class="text-2xl font-bold text-green-600">¥47,630</div>
+                            <div class="text-gray-500 text-sm">Total Given</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="total-received" class="text-2xl font-bold text-blue-600">¥32,210</div>
+                            <div class="text-gray-500 text-sm">Total Received</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="text-center mt-8 text-white/70 text-sm">
+                    <p>Managed by TABETE Team</p>
+                    <p>Building sustainable communities together</p>
+                    <p class="text-blue-200 mt-2">✅ Firebase統合 | ✅ Stripe決済 | ✅ 自動出金システム</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Modal -->
+        <div id="payment-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                    </svg>
+                    決済情報入力
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">支払い金額</label>
+                        <div id="payment-amount" class="text-2xl font-bold text-blue-600">¥0</div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">カード番号</label>
+                        <input type="text" id="card-number" placeholder="4242 4242 4242 4242" value="4242 4242 4242 4242" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">有効期限</label>
+                            <input type="text" id="card-expiry" placeholder="MM/YY" value="12/25" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CVC</label>
+                            <input type="text" id="card-cvc" placeholder="123" value="123" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">カード名義</label>
+                        <input type="text" id="card-name" placeholder="TARO YAMADA" value="TABETE USER" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 mt-6">
+                    <button onclick="closePaymentModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                        キャンセル
+                    </button>
+                    <button onclick="processPayment()" id="process-payment-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                        決済実行
+                    </button>
+                </div>
+                
+                <p class="text-xs text-gray-500 mt-4 text-center">
+                    テスト環境: 4242 4242 4242 4242 を使用してください
+                </p>
+            </div>
+        </div>
+
+        <!-- Payout Modal -->
+        <div id="payout-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md mx-4">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                    </svg>
+                    出金処理
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">出金金額</label>
+                        <div id="payout-amount" class="text-2xl font-bold text-green-600">¥0</div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">口座番号</label>
+                        <input type="text" id="bank-account" placeholder="1234567890" value="1234567890" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">支店番号</label>
+                        <input type="text" id="bank-routing" placeholder="000123" value="000123" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">口座種別</label>
+                        <select id="bank-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <option value="checking">普通預金</option>
+                            <option value="savings">定期預金</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 mt-6">
+                    <button onclick="closePayoutModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                        キャンセル
+                    </button>
+                    <button onclick="processPayout()" id="process-payout-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200">
+                        出金実行
+                    </button>
+                </div>
+                
+                <p class="text-xs text-gray-500 mt-4 text-center">
+                    テスト環境: 実際の出金は行われません
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_WUjcJjQK7HLz6H7zd1ofhAehNOs-Drk",
+            authDomain: "tabete-app.firebaseapp.com",
+            projectId: "tabete-app",
+            storageBucket: "tabete-app.firebasestorage.app",
+            messagingSenderId: "1074529797491",
+            appId: "1:1074529797491:web:5ddfd30f83601492a07106"
+        };
+
+        // Global state
+        let currentUser = null;
+        let isLoginMode = true;
+        let poolAmount = 15420;
+        let totalGiven = 47630;
+        let totalReceived = 32210;
+        let pendingRequests = [];
+        let userRequests = [];
+        let currentPaymentAmount = 0;
+        let pendingApprovalRequestId = null;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('hidden');
+                
+                // Check for saved user
+                const savedUser = localStorage.getItem('tabete_user');
+                if (savedUser) {
+                    currentUser = JSON.parse(savedUser);
+                    showMainScreen();
+                } else {
+                    document.getElementById('auth-screen').classList.remove('hidden');
+                }
+                
+                loadData();
+                setInterval(loadData, 5000); // Auto-refresh every 5 seconds
+            }, 1500);
+
+            // Update display amounts on input
+            document.getElementById('give-amount').addEventListener('input', function() {
+                const amount = this.value || '0';
+                document.getElementById('give-display').textContent = parseInt(amount).toLocaleString();
+            });
+
+            document.getElementById('get-amount').addEventListener('input', function() {
+                const amount = this.value || '0';
+                document.getElementById('get-display').textContent = parseInt(amount).toLocaleString();
+                
+                const getError = document.getElementById('get-error');
+                if (parseInt(amount) > poolAmount) {
+                    getError.classList.remove('hidden');
+                } else {
+                    getError.classList.add('hidden');
+                }
+            });
+        });
+
+        // Auth functions
+        function showAuthForm(isLogin) {
+            isLoginMode = isLogin;
+            document.getElementById('welcome-card').classList.add('hidden');
+            document.getElementById('auth-form').classList.remove('hidden');
+            
+            const title = document.getElementById('auth-title');
+            const submit = document.getElementById('auth-submit');
+            const toggle = document.getElementById('auth-toggle');
+            const confirm = document.getElementById('auth-confirm');
+            
+            if (isLogin) {
+                title.textContent = 'Login';
+                submit.textContent = 'Login';
+                toggle.textContent = "Don't have an account? Sign up";
+                confirm.classList.add('hidden');
+            } else {
+                title.textContent = 'Sign Up';
+                submit.textContent = 'Sign Up';
+                toggle.textContent = 'Already have an account? Login';
+                confirm.classList.remove('hidden');
+            }
+        }
+
+        function showWelcome() {
+            document.getElementById('auth-form').classList.add('hidden');
+            document.getElementById('welcome-card').classList.remove('hidden');
+        }
+
+        function toggleAuthMode() {
+            showAuthForm(!isLoginMode);
+        }
+
+        async function handleAuth() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const confirm = document.getElementById('auth-confirm').value;
+
+            if (!email || !password) {
+                alert('メールアドレスとパスワードを入力してください');
+                return;
+            }
+
+            if (!isLoginMode && password !== confirm) {
+                alert('パスワードが一致しません');
+                return;
+            }
+
+            const submit = document.getElementById('auth-submit');
+            submit.textContent = 'Processing...';
+            submit.disabled = true;
+
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                const userData = {
+                    uid: 'user_' + email.replace(/[^a-zA-Z0-9]/g, '_'),
+                    email: email,
+                    displayName: email.split('@')[0]
+                };
+
+                currentUser = userData;
+                localStorage.setItem('tabete_user', JSON.stringify(userData));
+                
+                showMainScreen();
+                showSuccessMessage();
+            } catch (error) {
+                alert('認証エラーが発生しました');
+            }
+
+            submit.textContent = isLoginMode ? 'Login' : 'Sign Up';
+            submit.disabled = false;
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('tabete_user');
+            document.getElementById('main-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            showWelcome();
+        }
+
+        function showMainScreen() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-screen').classList.remove('hidden');
+            
+            document.getElementById('user-welcome').textContent = `Welcome, ${currentUser.displayName}!`;
+            
+            if (currentUser.email === 'admin@tabete.com') {
+                document.getElementById('admin-btn').classList.remove('hidden');
+            }
+            
+            updateDisplay();
+        }
+
+        // Data functions
+        async function loadData() {
+            try {
+                // Simulate data loading from Firebase
+                const poolData = localStorage.getItem('pool_data');
+                if (poolData) {
+                    const data = JSON.parse(poolData);
+                    poolAmount = data.amount;
+                    totalGiven = data.totalGiven;
+                    totalReceived = data.totalReceived;
+                }
+
+                const requestsData = localStorage.getItem('requests_data');
+                if (requestsData) {
+                    const requests = JSON.parse(requestsData);
+                    pendingRequests = requests.filter(r => r.status === 'pending');
+                    
+                    if (currentUser) {
+                        userRequests = requests.filter(r => r.userId === currentUser.uid);
+                    }
+                }
+
+                updateDisplay();
+            } catch (error) {
+                console.error('Data loading error:', error);
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('pool-amount').textContent = `¥${poolAmount.toLocaleString()}`;
+            document.getElementById('total-given').textContent = `¥${totalGiven.toLocaleString()}`;
+            document.getElementById('total-received').textContent = `¥${totalReceived.toLocaleString()}`;
+            
+            updateAdminPanel();
+            updateUserRequests();
+        }
+
+        function updateAdminPanel() {
+            const container = document.getElementById('pending-requests');
+            
+            if (pendingRequests.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">承認待ちの申請はありません</p>';
+            } else {
+                container.innerHTML = pendingRequests.map(request => `
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="font-medium">${request.userEmail}</p>
+                                <p class="text-2xl font-bold text-blue-600">¥${request.amount.toLocaleString()}</p>
+                                <p class="text-sm text-gray-500">${new Date(request.createdAt).toLocaleString('ja-JP')}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="approveRequest('${request.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">承認・出金</button>
+                                <button onclick="rejectRequest('${request.id}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">却下</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateUserRequests() {
+            const container = document.getElementById('user-requests');
+            const list = document.getElementById('requests-list');
+            
+            if (userRequests.length > 0) {
+                container.classList.remove('hidden');
+                list.innerHTML = userRequests.slice(-3).reverse().map(request => `
+                    <div class="flex justify-between items-center p-3 border border-gray-200 rounded-lg">
+                        <div>
+                            <p class="font-medium">¥${request.amount.toLocaleString()}</p>
+                            <p class="text-sm text-gray-500">${new Date(request.createdAt).toLocaleDateString('ja-JP')}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-sm font-medium ${
+                            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            request.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                        }">
+                            ${request.status === 'pending' ? '承認待ち' :
+                              request.status === 'approved' ? '承認済み' : '却下'}
+                        </span>
+                    </div>
+                `).join('');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // Action functions
+        function handleGive() {
+            if (!currentUser) {
+                alert('ログインが必要です');
+                return;
+            }
+
+            const amount = document.getElementById('give-amount').value;
+            if (!amount || amount <= 0) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+
+            currentPaymentAmount = parseInt(amount);
+            document.getElementById('payment-amount').textContent = `¥${currentPaymentAmount.toLocaleString()}`;
+            document.getElementById('payment-modal').classList.remove('hidden');
+            document.getElementById('give-amount').value = '';
+            document.getElementById('give-display').textContent = '0';
+        }
+
+        function handleGet() {
+            if (!currentUser) {
+                alert('ログインが必要です');
+                return;
+            }
+
+            const amount = document.getElementById('get-amount').value;
+            if (!amount || amount <= 0) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+
+            if (parseInt(amount) > poolAmount) {
+                alert('プール残高を超えています');
+                return;
+            }
+
+            const request = {
+                id: Date.now().toString(),
+                userId: currentUser.uid,
+                userEmail: currentUser.email,
+                amount: parseInt(amount),
+                status: 'pending',
+                type: 'get',
+                createdAt: new Date().toISOString()
+            };
+
+            pendingRequests.push(request);
+            userRequests.push(request);
+            saveRequestsData();
+
+            document.getElementById('get-amount').value = '';
+            document.getElementById('get-display').textContent = '0';
+            document.getElementById('get-error').classList.add('hidden');
+
+            alert(`¥${parseInt(amount).toLocaleString()}の受取申請を送信しました。管理人の承認をお待ちください。`);
+            updateDisplay();
+        }
+
+        function toggleAdminPanel() {
+            const panel = document.getElementById('admin-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function approveRequest(requestId) {
+            const request = pendingRequests.find(r => r.id === requestId);
+            if (request) {
+                pendingApprovalRequestId = requestId;
+                document.getElementById('payout-amount').textContent = `¥${request.amount.toLocaleString()}`;
+                document.getElementById('payout-modal').classList.remove('hidden');
+            }
+        }
+
+        function rejectRequest(requestId) {
+            pendingRequests = pendingRequests.filter(r => r.id !== requestId);
+            userRequests = userRequests.map(r => 
+                r.id === requestId ? {...r, status: 'rejected'} : r
+            );
+            saveRequestsData();
+            updateDisplay();
+            alert('申請を却下しました。');
+        }
+
+        // Payment functions
+        function closePaymentModal() {
+            document.getElementById('payment-modal').classList.add('hidden');
+        }
+
+        function closePayoutModal() {
+            document.getElementById('payout-modal').classList.add('hidden');
+        }
+
+        async function processPayment() {
+            const btn = document.getElementById('process-payment-btn');
+            btn.textContent = '処理中...';
+            btn.disabled = true;
+
+            try {
+                // Simulate Stripe payment
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Success - update pool
+                poolAmount += currentPaymentAmount;
+                totalGiven += currentPaymentAmount;
+                savePoolData();
+
+                // Add transaction
+                addTransaction({
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    type: 'stripe_payment',
+                    amount: currentPaymentAmount,
+                    status: 'completed',
+                    createdAt: new Date().toISOString()
+                });
+
+                closePaymentModal();
+                showSuccessMessage();
+                updateDisplay();
+            } catch (error) {
+                alert('決済処理中にエラーが発生しました: ' + error.message);
+            }
+
+            btn.textContent = '決済実行';
+            btn.disabled = false;
+        }
+
+        async function processPayout() {
+            const btn = document.getElementById('process-payout-btn');
+            btn.textContent = '処理中...';
+            btn.disabled = true;
+
+            try {
+                // Simulate Stripe payout
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                const request = pendingRequests.find(r => r.id === pendingApprovalRequestId);
+                if (request) {
+                    // Success - update pool
+                    poolAmount -= request.amount;
+                    totalReceived += request.amount;
+                    savePoolData();
+
+                    // Remove from pending and update status
+                    pendingRequests = pendingRequests.filter(r => r.id !== pendingApprovalRequestId);
+                    userRequests = userRequests.map(r => 
+                        r.id === pendingApprovalRequestId ? {...r, status: 'approved'} : r
+                    );
+                    saveRequestsData();
+
+                    // Add transaction
+                    addTransaction({
+                        userId: request.userId,
+                        userEmail: request.userEmail,
+                        type: 'stripe_payout',
+                        amount: request.amount,
+                        status: 'completed',
+                        createdAt: new Date().toISOString()
+                    });
+
+                    alert(`¥${request.amount.toLocaleString()}の受取申請を承認し、出金処理を完了しました。`);
+                }
+
+                closePayoutModal();
+                updateDisplay();
+            } catch (error) {
+                alert('出金処理中にエラーが発生しました: ' + error.message);
+            }
+
+            btn.textContent = '出金実行';
+            btn.disabled = false;
+        }
+
+        // Utility functions
+        function savePoolData() {
+            localStorage.setItem('pool_data', JSON.stringify({
+                amount: poolAmount,
+                totalGiven: totalGiven,
+                totalReceived: totalReceived
+            }));
+        }
+
+        function saveRequestsData() {
+            const allRequests = [...pendingRequests, ...userRequests.filter(r => r.status !== 'pending')];
+            localStorage.setItem('requests_data', JSON.stringify(allRequests));
+        }
+
+        function addTransaction(transaction) {
+            const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+            transactions.push(transaction);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+        }
+
+        function showSuccessMessage() {
+            const msg = document.getElementById('success-message');
+            msg.classList.remove('hidden');
+            setTimeout(() => {
+                msg.classList.add('hidden');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
